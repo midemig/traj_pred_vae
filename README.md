@@ -21,5 +21,4 @@ The dataset used for these experiments can be found on https://www.highd-dataset
 
 Open and run all cells from **traj_pred_vae.ipynb** notebook
 
-Note: *Pending to upload python files*
-
+Note: *Pending to upload traj_pred_vae.ipynb notebook*
