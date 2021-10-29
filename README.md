@@ -12,6 +12,7 @@ The dataset used for these experiments can be found on https://www.highd-dataset
   * TensorFlow 2.4.1
   * Keras 2.4.0
   * Pandas 1.2.1
+  * Numpy 1.19.5
   
 ## Usage
 
@@ -20,5 +21,3 @@ The dataset used for these experiments can be found on https://www.highd-dataset
 ```
 
 Open and run all cells from **traj_pred_vae.ipynb** notebook
-
-Note: *Pending to upload traj_pred_vae.ipynb notebook*

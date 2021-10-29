@@ -1,3 +1,5 @@
 .*
 __*
+*.png
+*.pdf
 !.gitignore
