@@ -16,7 +16,10 @@ The dataset used for these experiments can be found on https://www.highd-dataset
   
 ## Usage
 
+Extract all the dataset csv into data/ folder
+
 ```bash
+    python3 extract.py
     python3 preprocess.py
 ```
 

@@ -1,11 +1,12 @@
 import pandas as pd
-from src.data_management.read_csv import *
+# from src.data_management.read_csv import *
 import matplotlib.pyplot as plt 
 from tqdm.notebook import tqdm
 from multiprocessing import Process, Value, Manager
 import numpy as np
 import scipy as sp
 import scipy.signal as sg
+import time
 from NN_Lib import get_lane_pertenence
 import tensorflow as tf
 from multiprocessing import Pool
@@ -19,8 +20,7 @@ from multiprocessing import Pool
 vehicles = []
 ids_array = []
 sequences = []
-
-lanes_pose = np.load('lanes_pose.npy', allow_pickle=True).tolist()
+lanes_pose = [None]*60
 
 for seq in tqdm(range(1, 60)):
 
@@ -82,6 +82,16 @@ for seq in tqdm(range(1, 60)):
         data['seq'] = seq
         ids_array.append(data['id'].drop_duplicates())
         
+        # Get lanes poses
+
+
+        poses = []
+        for lane in range(2,9):
+            pose = np.mean(data[data['laneId'] == lane]['Y'])
+            if pose > 0 :
+                poses.append(pose)
+        lanes_pose[int(seq)] = poses
+        
         extra = data['Y'].apply(get_lane_pertenence, args=([lanes_pose[seq]]))
         data['lane1'] = pd.DataFrame(np.array(extra.tolist())[:,0])
         data['lane2'] = pd.DataFrame(np.array(extra.tolist())[:,1])
@@ -102,20 +112,7 @@ ids_array= np.concatenate(ids_array)
 
 
 
-# ********************
-# Get lanes poses
-# ********************
 
-lanes_pose = [None]*60
-
-for seq in vehicles.index.drop_duplicates():
-    poses = []
-    for lane in range(2,9):
-        pose = np.mean(vehicles.loc[seq][vehicles.loc[seq]['laneId'] == lane]['Y'])
-        if pose > 0 :
-            poses.append(pose)
-    lanes_pose[int(seq)] = poses
-np.save('lanes_pose', np.array(lanes_pose))
 
 
 # ********************
@@ -136,20 +133,6 @@ vehicles.loc[:, 'fr_d'] = np.cbrt(vehicles.loc[:, 'fr_d'])
 vehicles.loc[:, 'br_d'] = np.cbrt(vehicles.loc[:, 'br_d'])
 vehicles.loc[:, 'bl_d'] = np.cbrt(vehicles.loc[:, 'bl_d'])
 
-norm_data = pd.read_csv('norm_data_2.csv', index_col=0)
-
-vehicles.loc[:, 'xVelocity'] = (vehicles.loc[:, 'xVelocity'] - norm_data.loc['xVelocity', 'mean'])/norm_data.loc['xVelocity', 'std']
-vehicles.loc[:, 'yVelocity'] = (vehicles.loc[:, 'yVelocity'])/norm_data.loc['yVelocity', 'std']
-vehicles.loc[:, 'xAcceleration'] = (vehicles.loc[:, 'xAcceleration'])/norm_data.loc['xAcceleration', 'std']
-vehicles.loc[:, 'l_d'] = (vehicles.loc[:, 'l_d'])/norm_data.loc['l_d', 'std']
-vehicles.loc[:, 'r_d'] = (vehicles.loc[:, 'r_d'])/norm_data.loc['r_d', 'std']
-vehicles.loc[:, 'f_d'] = (vehicles.loc[:, 'f_d'])/norm_data.loc['f_d', 'mode']
-vehicles.loc[:, 'b_d'] = (vehicles.loc[:, 'b_d'])/norm_data.loc['b_d', 'mode']
-vehicles.loc[:, 'fl_d'] = (vehicles.loc[:, 'fl_d'])/norm_data.loc['fl_d', 'mode']
-vehicles.loc[:, 'fr_d'] = (vehicles.loc[:, 'fr_d'])/norm_data.loc['fr_d', 'mode']
-vehicles.loc[:, 'br_d'] = (vehicles.loc[:, 'br_d'])/norm_data.loc['br_d', 'mode']
-vehicles.loc[:, 'bl_d'] = (vehicles.loc[:, 'bl_d'])/norm_data.loc['bl_d', 'mode']
-
 norm_data = pd.DataFrame(np.zeros([len(norm_headers),5]))
 norm_data.columns = ['min', 'max', 'mean', 'std', 'mode']
 norm_data.index = norm_headers
@@ -168,7 +151,20 @@ for header in norm_headers[-6:]:
     norm_data.loc[header, 'std'] = np.std(vehicles[vehicles[header]>0][header])
     norm_data.loc[header, 'mode'] = sp.stats.mode(vehicles[vehicles[header]>0][header])[0]
 
-norm_data.to_csv('norm_data.csv')
+vehicles.loc[:, 'xVelocity'] = (vehicles.loc[:, 'xVelocity'] - norm_data.loc['xVelocity', 'mean'])/norm_data.loc['xVelocity', 'std']
+vehicles.loc[:, 'yVelocity'] = (vehicles.loc[:, 'yVelocity'])/norm_data.loc['yVelocity', 'std']
+vehicles.loc[:, 'xAcceleration'] = (vehicles.loc[:, 'xAcceleration'])/norm_data.loc['xAcceleration', 'std']
+vehicles.loc[:, 'l_d'] = (vehicles.loc[:, 'l_d'])/norm_data.loc['l_d', 'std']
+vehicles.loc[:, 'r_d'] = (vehicles.loc[:, 'r_d'])/norm_data.loc['r_d', 'std']
+vehicles.loc[:, 'f_d'] = (vehicles.loc[:, 'f_d'])/norm_data.loc['f_d', 'mode']
+vehicles.loc[:, 'b_d'] = (vehicles.loc[:, 'b_d'])/norm_data.loc['b_d', 'mode']
+vehicles.loc[:, 'fl_d'] = (vehicles.loc[:, 'fl_d'])/norm_data.loc['fl_d', 'mode']
+vehicles.loc[:, 'fr_d'] = (vehicles.loc[:, 'fr_d'])/norm_data.loc['fr_d', 'mode']
+vehicles.loc[:, 'br_d'] = (vehicles.loc[:, 'br_d'])/norm_data.loc['br_d', 'mode']
+vehicles.loc[:, 'bl_d'] = (vehicles.loc[:, 'bl_d'])/norm_data.loc['bl_d', 'mode']
+
+
+
 
 
 # ********************
@@ -219,8 +215,11 @@ def normalize_y(Y, lanes_pose):
     return pose
 
 for seq in range(1,59):
-    vehicles.loc[seq, 'normalized_Y'] = vehicles.loc[seq, 'Y'].apply(normalize_y, args=([lanes_pose[seq]]))
-    print(seq)
+    try:
+        vehicles.loc[seq, 'normalized_Y'] = vehicles.loc[seq, 'Y'].apply(normalize_y, args=([lanes_pose[seq]]))
+        print(seq)
+    except:
+        print('Seq ', seq, ' not found')
 
 
 
@@ -253,6 +252,7 @@ def detect_lane_change(array, drive_dir, dist=80):
 
 def generate_data(seq, return_data=False):
     
+    
     vehicles_seq = vehicles.loc[seq].set_index(['seq', 'id'])
     vehicles_seq['maneuver'] = np.zeros(vehicles_seq.shape[0])
     
@@ -283,6 +283,7 @@ def generate_data(seq, return_data=False):
     np.save('train_data/' + str(y_time_steps) + '/X_' + '{0:0=2d}'.format(int(seq)), np.array(X).astype(np.float32))
     np.save('train_data/' + str(y_time_steps) + '/y_' + '{0:0=2d}'.format(int(seq)), np.array(y).astype(np.float32))
     
+    
     if return_data:
         return X, y
     else:
@@ -296,8 +297,8 @@ vehicles_seq_sep = 15
 step_sep = 2
 sample_sep = 15
 T = 1.0/25.0
+
     
 pool = Pool(processes=7)              
-inputs = vehicles.index.drop_duplicates()[:-2]
+inputs = vehicles.index.drop_duplicates()#[:-2]
 result = pool.map(generate_data, inputs)
-
